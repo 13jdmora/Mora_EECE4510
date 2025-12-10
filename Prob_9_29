@@ -1,0 +1,66 @@
+% prob9_29.m  - Blandford & Parr 9.29
+% Sawtooth at 440 Hz, Fs = 22050 Hz.
+% Peaking equalizer: fc = 2200 Hz, BW = 3080 Hz, peak gain = 4.
+% Plays original and equalized sound, then plots spectrum and EQ response.
+% By Jose Mora
+
+clear; close all; clc;
+
+%% Parameters
+Fs  = 22050;          % sample rate (Hz)
+f0  = 440;            % base frequency of sawtooth (Hz)
+dur = 1.0;            % duration in seconds (>= 1 second)
+
+t = 0:1/Fs:dur-1/Fs;
+
+%% Band-limited sawtooth using Fourier series
+% Harmonics: k * 440 Hz, limited to < Fs/2 = 11025 Hz
+Kmax = floor((Fs/2)/f0);   % highest harmonic below Nyquist
+
+x = zeros(size(t));
+for k = 1:Kmax
+    x = x + (1/k)*sin(2*pi*k*f0*t);
+end
+x = -2/pi * x;   % standard sawtooth scaling (approx range [-1,1])
+
+% Play original sawtooth
+sound(x, Fs);        % comment out if you don't want automatic playback
+pause(dur + 0.5);
+
+%% Design peaking equalizer
+G  = 4;              % linear peak gain
+fc = 2200;           % center frequency (Hz)
+BW = 3080;           % bandwidth (Hz)
+
+[B, A] = boost(G, fc, BW, Fs);   % see function definition below
+
+%% Filter the signal with the equalizer
+y = filter(B, A, x);
+
+% Play equalized signal
+sound(y, Fs);
+pause(dur + 0.5);
+
+%% Plot sawtooth spectrum and equalizer frequency response
+Nfft = 4096;
+X = fft(x, Nfft);
+f = (0:Nfft-1)/Nfft * Fs;
+
+figure;
+
+% Magnitude spectrum of the original sawtooth
+subplot(2,1,1);
+plot(f(1:Nfft/2), 20*log10(abs(X(1:Nfft/2))/max(abs(X))));
+grid on; xlim([0 8000]);
+xlabel('Frequency (Hz)');
+ylabel('Magnitude (dB)');
+title('Band-limited sawtooth magnitude spectrum');
+
+% Frequency response of the peaking equalizer
+[H, w] = freqz(B, A, Nfft, Fs);
+subplot(2,1,2);
+plot(w, 20*log10(abs(H)));
+grid on; xlim([0 8000]);
+xlabel('Frequency (Hz)');
+ylabel('Magnitude (dB)');
+title(sprintf('Peaking EQ: G = 4, f_c = %d Hz, BW = %d Hz', fc, BW));
